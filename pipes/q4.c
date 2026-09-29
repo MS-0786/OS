@@ -6,96 +6,56 @@ back to the parent process, which then prints it. Both the parent and
 child terminates when the number 0 is input.
 
 
-  #include <stdio.h>
+#include <stdio.h>
 #include <unistd.h>
 #include <sys/wait.h>
 
 int main()
 {
-    int pipe1[2];
-    int pipe2[2];
+    int p1[2], p2[2], n, sum;
+    pipe(p1);
+    pipe(p2);
 
-    pid_t pid;
-
-    int number;
-    int result;
-    int sum;
-
-    // Create two pipes
-    pipe(pipe1);
-    pipe(pipe2);
-
-    // Create child
-    pid = fork();
-
-    if (pid > 0)
+    if (fork() == 0)
     {
-        // Parent
-
-        // Parent writes to pipe1
-        close(pipe1[0]);
-
-        // Parent reads from pipe2
-        close(pipe2[1]);
+        // Child
+        close(p1[1]);
+        close(p2[0]);
 
         while (1)
         {
-            printf("Enter a number: ");
-            scanf("%d", &number);
+            read(p1[0], &n, sizeof(n));
 
-            // Send number to child
-            write(pipe1[1], &number, sizeof(number));
-
-            if (number == 0)
-            {
+            if (n == 0)
                 break;
-            }
 
-            // Receive result from child
-            read(pipe2[0], &result, sizeof(result));
+            sum = n * (n + 1) / 2;
 
-            printf("Sum = %d\n", result);
+            write(p2[1], &sum, sizeof(sum));
         }
-
-        close(pipe1[1]);
-        close(pipe2[0]);
-
-        wait(NULL);
     }
     else
     {
-        // Child
-
-        // Child reads from pipe1
-        close(pipe1[1]);
-
-        // Child writes to pipe2
-        close(pipe2[0]);
+        // Parent
+        close(p1[0]);
+        close(p2[1]);
 
         while (1)
         {
-            // Receive number
-            read(pipe1[0], &number, sizeof(number));
+            printf("Enter number: ");
+            scanf("%d", &n);
 
-            if (number == 0)
-            {
+            write(p1[1], &n, sizeof(n));
+
+            if (n == 0)
                 break;
-            }
 
-            // Calculate sum
-            sum = 0;
+            read(p2[0], &sum, sizeof(sum));
 
-            for (int i = 1; i <= number; i++)
-            {
-                sum = sum + i;
-            }
-
-            // Send result to parent
-            write(pipe2[1], &sum, sizeof(sum));
+            printf("Sum = %d\n", sum);
         }
 
-        close(pipe1[0]);
-        close(pipe2[1]);
+        wait(NULL);
     }
 
     return 0;
